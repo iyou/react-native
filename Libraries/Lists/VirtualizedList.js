@@ -607,6 +607,16 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   }
 
   componentWillUnmount() {
+    this.setState({
+      first: this.props.initialScrollIndex || 0,
+      last:
+        Math.min(
+          this.props.getItemCount(this.props.data),
+          (this.props.initialScrollIndex || 0) + this.props.initialNumToRender,
+        ) - 1,
+    });
+    this._updateCellsToRenderBatcher.schedule();
+
     if (this._isNestedWithSameOrientation()) {
       this.context.virtualizedList.unregisterAsNestedChild({
         key: this.props.listKey || this._getCellKey(),
@@ -899,9 +909,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       onScrollEndDrag: this._onScrollEndDrag,
       onMomentumScrollEnd: this._onMomentumScrollEnd,
       scrollEventThrottle: this.props.scrollEventThrottle, // TODO: Android support
-      invertStickyHeaders: this.props.invertStickyHeaders !== undefined
-        ? this.props.invertStickyHeaders
-        : this.props.inverted,	
+      invertStickyHeaders:
+        this.props.invertStickyHeaders !== undefined
+          ? this.props.invertStickyHeaders
+          : this.props.inverted,
       stickyHeaderIndices,
     };
     if (inversionStyle) {
@@ -943,6 +954,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         tuple.viewabilityHelper.resetViewableIndices();
       });
     }
+    this._updateCellsToRenderBatcher.schedule();
     this._scheduleCellsToRenderUpdate();
   }
 
@@ -1353,7 +1365,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       // Don't worry about interactions when scrolling quickly; focus on filling content as fast
       // as possible.
       this._updateCellsToRenderBatcher.dispose({abort: true});
-      this._updateCellsToRender();
+      this._updateCellsToRenderBatcher.schedule();
       return;
     } else {
       this._updateCellsToRenderBatcher.schedule();
@@ -1658,7 +1670,9 @@ class CellRenderer extends React.Component<
       ? horizontal
         ? [{flexDirection: 'row-reverse'}, inversionStyle]
         : [{flexDirection: 'column-reverse'}, inversionStyle]
-      : horizontal ? [{flexDirection: 'row'}, inversionStyle] : inversionStyle;
+      : horizontal
+        ? [{flexDirection: 'row'}, inversionStyle]
+        : inversionStyle;
     if (!CellRendererComponent) {
       return (
         <View style={cellStyle} onLayout={onLayout}>
